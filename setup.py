@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='prometheus-es-exporter',
-    version='0.1.0.dev1',
-    description='Elasticsearch query Prometheus exporter',
-    url='https://github.com/Braedon/prometheus-es-exporter',
-    author='Braedon Vickers',
-    author_email='braedon.vickers@gmal.com',
+    name='samza-prometheus-exporter',
+    version='0.1.0',
+    description='Samza metrics Prometheus exporter',
+    url='https://github.com/movio/samza-prometheus-exporter',
+    author='Nicolas Maquet',
+    author_email='nicolas@movio.co',
     license='MIT',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
@@ -17,15 +17,15 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
     ],
-    keywords='monitoring prometheus exporter elasticsearch',
+    keywords='monitoring prometheus exporter apache samza',
     packages=find_packages(exclude=['tests']),
     install_requires=[
-        'elasticsearch',
+        'kafka-python',
         'prometheus-client'
     ],
     entry_points={
         'console_scripts': [
-            'prometheus-es-exporter=exporter:main',
+            'samza-prometheus-exporter=exporter:main',
         ],
     },
 )
