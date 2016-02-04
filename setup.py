@@ -21,7 +21,7 @@ setup(
     packages=find_packages(exclude=['tests']),
     install_requires=[
         'kafka-python',
-        'prometheus-client'
+        'prometheus-client>=0.0.13'
     ],
     entry_points={
         'console_scripts': [

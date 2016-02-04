@@ -1,113 +1,85 @@
-import configparser
-import json
-import sched
-import time
+# -*- coding: utf-8 -*-
 
-from elasticsearch import Elasticsearch
+import json
+import argparse
+from exporter import samza
+from kafka import KafkaConsumer
 from prometheus_client import start_http_server, Gauge
 
-from exporter.parser import parse_response
+KAFKA_GROUP_ID = 'samza-prometheus-exporter'
 
-gauges = {}
+GAUGES = {}
 
-def format_label_value(value_list):
-    return '_'.join(value_list)
+def metric_name_escape(name):
+    return name.replace(".", "_").replace("-", "_").replace(" ", "_")
 
-def format_metric_name(name_list):
-    return '_'.join(name_list)
+def setGaugeValue(name, labels, labelValues, value, description = ""):
+    name = metric_name_escape(name)
+    if name not in GAUGES:
+        GAUGES[name] = Gauge(name, description, labels)
+    if labels:
+        GAUGES[name].labels(*labelValues).set(value)
+    else:
+        GAUGES[name].set(value)
 
-def update_gauges(metrics):
-    metric_dict = {}
-    for (name_list, label_dict, value) in metrics:
-        metric_name = format_metric_name(name_list)
-        if metric_name not in metric_dict:
-            metric_dict[metric_name] = (tuple(label_dict.keys()), {})
+def process_metric(job_name, metric_class_name, metric_name, metric_value):
+    try:
+        float(metric_value)
+    except ValueError:
+        return
+    if metric_class_name in samza.metrics:
+        processed = False
+        for entry in samza.metrics[metric_class_name]:
+            if type(entry) is str and metric_name == entry:
+                return setGaugeValue('samza:' + metric_class_name + ":" + metric_name, [ 'samza_job' ], [ job_name ], metric_value)
+            elif type(entry) is tuple:
+                regex, parser = entry
+                match = regex.match(metric_name)
+                if match is not None:
+                    parsed_metric = parser(match)
+                    return setGaugeValue(
+                        'samza:' + metric_class_name + ":" + parsed_metric['name'],
+                        [ 'samza_job' ] + list(parsed_metric['labels'].keys()),
+                        [ job_name] + list(parsed_metric['labels'].values()),
+                        metric_value
+                    )
+        raise KeyError('unrecognized Samza metric: %s.%s' % (metric_class_name, metric_name))
+    else:
+        return setGaugeValue('samza:' + metric_class_name + ":" + metric_name, [ 'samza_job' ], [ job_name ], metric_value)
 
-        label_keys = metric_dict[metric_name][0]
-        label_values = tuple([
-            format_label_value(label_dict[key])
-            for key in label_keys
-        ])
+def process_message(message, consumer, brokers):
+    message_value_json = json.loads(str(message.value.decode('utf-8')))
+    job_name = message_value_json['header']['job-name']
+    for metric_class_name, metrics in message_value_json['metrics'].items():
+        for metric_name, metric_value in metrics.items():
+            process_metric(job_name, metric_class_name, metric_name, metric_value)
 
-        metric_dict[metric_name][1][label_values] = value
-
-    for metric_name, (label_keys, value_dict) in metric_dict.items():
-        if metric_name in gauges:
-            (old_label_values_set, gauge) = gauges[metric_name]
-        else:
-            old_label_values_set = set()
-            gauge = Gauge(metric_name, '', label_keys)
-
-        new_label_values_set = set(value_dict.keys())
-
-        for label_values in old_label_values_set - new_label_values_set:
-            gauge.remove(*label_values)
-
-        for label_values, value in value_dict.items():
-            if label_values:
-                gauge.labels(*label_values).set(value)
-            else:
-                gauge.set(value)
-
-        gauges[metric_name] = (new_label_values_set, gauge)
-
-def run_scheduler(scheduler, es_client, name, interval, query):
-    def scheduled_run(scheduled_time, interval):
-        try:
-            response = es_client.search(body=query)
-        except Exception as ex:
-            pass
-        else:
-            metrics = parse_response(response, [name])
-            update_gauges(metrics)
-
-        next_scheduled_time = scheduled_time + interval
-        scheduler.enterabs(
-            next_scheduled_time,
-            1,
-            scheduled_run,
-            (next_scheduled_time, interval)
-        )
-
-    next_scheduled_time = time.monotonic()
-    scheduler.enterabs(
-        next_scheduled_time,
-        1,
-        scheduled_run,
-        (next_scheduled_time, interval)
-    )
+def consume_topic(consumer, brokers):
+    print('Starting consumption loop.')
+    for message in consumer:
+        process_message(message, consumer, brokers)
 
 def main():
-    config = configparser.ConfigParser()
-    config.read('exporter.cfg')
+    parser = argparse.ArgumentParser(description='Feed Apache Samza metrics into Prometheus.')
+    parser.add_argument('--brokers', metavar='BROKERS', type=str, required=True,
+                        help='list of comma-separated kafka brokers: host[:port],host[:port],...')
+    parser.add_argument('--port', metavar='PORT', type=int, nargs='?', default=8080,
+                        help='port to serve metrics to Prometheus (default: 8080)')
+    parser.add_argument('--topic', metavar='TOPIC', type=str, nargs='?',default='samza-metrics',
+                        help='name of topic to consume (default: "samza-metrics")')
+    parser.add_argument('--from-beginning', action='store_const', const=True,
+                        help='consume topic from offset 0')
+    args = parser.parse_args()
+    brokers = args.brokers.split(',')
+    consumer = KafkaConsumer(args.topic, group_id=KAFKA_GROUP_ID, bootstrap_servers=brokers)
+    start_http_server(args.port)
 
-    port = config.getint('exporter', 'Port')
-    es_hosts = config.get('elasticsearch', 'Hosts').split(',')
-
-    query_prefix = 'query_'
-    queries = {}
-    for section in config.sections():
-        if section.startswith(query_prefix):
-            query_name = section[len(query_prefix):]
-            query_interval = config.getfloat(section, 'QueryIntervalSecs')
-            query = json.loads(config.get(section, 'QueryJson'))
-
-            queries[query_name] = (query_interval, query)
-
-    es_client = Elasticsearch(es_hosts)
-
-    scheduler = sched.scheduler()
-
-    print('Starting server...')
-    start_http_server(port)
-    print('Server started on port {}'.format(port))
-
-    for name, (interval, query) in queries.items():
-        run_scheduler(scheduler, es_client, name, interval, query)
+    if args.from_beginning:
+        consumer.set_topic_partitions((args.topic, 0, 0)) # FIXME: beginning may not be offset 0
 
     try:
-        scheduler.run()
+        consume_topic(consumer, args.brokers)
     except KeyboardInterrupt:
-        pass
+        pass # FIXME : should we close consumer ?
 
     print('Shutting down')
