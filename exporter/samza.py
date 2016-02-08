@@ -64,6 +64,23 @@ def system_stream_partition_metric(match):
         }
     }
 
+def partition_metric(match):
+    return {
+        'name': match.group(2),
+        'labels': {
+            'partition': match.group(1)
+        }
+    }
+
+def partition_store_metric(match):
+    return {
+        'name': 'store-' + match.group(3),
+        'labels': {
+            'partition': match.group(1),
+            'store': match.group(2)
+        }
+    }
+
 """
 Simple metrics are encoded as strings.
 Metrics that need a regex to extract labels are encoded as a tuple (regex, parser).
@@ -78,6 +95,7 @@ metrics = {
         'kafka-flush-failed',
         'kafka-flushes',
         'serialization error',
+        'kafka-flush-ns',
     ],
     'org.apache.samza.system.kafka.KafkaSystemConsumerMetrics': {
         (re('(.*)-(\d+)-(bytes-read)'), topic_partition_metric),
@@ -113,8 +131,10 @@ metrics = {
     'org.apache.samza.metrics.JvmMetrics': {
         'mem-heap-committed-mb',
         'mem-heap-used-mb',
+        'mem-heap-max-mb',
         'mem-non-heap-committed-mb',
         'mem-non-heap-used-mb',
+        'mem-non-heap-max-mb',
         'threads-blocked',
         'threads-terminated',
         'threads-timed-waiting',
@@ -140,6 +160,8 @@ metrics = {
         'http-port',
         'rpc-port',
         'task-count',
+        'locality-matched',
+        'container-count',
     },
     'org.apache.samza.container.SamzaContainerMetrics': {
         'process-calls',
@@ -149,19 +171,30 @@ metrics = {
         'process-null-envelopes',
         'process-envelopes',
         'process-ms',
+        'process-ns',
         'window-ms',
+        'window-ns',
         'choose-ms',
+        'choose-ns',
         'commit-ms',
+        'commit-ns',
+        'event-loop-utilization',
+        'messages-actually-processed',
+        (re('partition (\d+)-(object-restore-time)'), partition_metric),
+        (re('partition (\d+)-(lookup-restore-time)'), partition_metric),
+        (re('partition (\d+)-(.*)-(restore-time)'), partition_store_metric),
     },
     'org.apache.samza.storage.kv.KeyValueStoreMetrics': {
         (re('(.*)-(bytes-read)'), store_metric),
         (re('(.*)-(bytes-written)'), store_metric),
         (re('(.*)-(flushes)'), store_metric),
         (re('(.*)-(deletes)'), store_metric),
+        (re('(.*)-(deletealls)'), store_metric),
         (re('(.*)-(puts)'), store_metric),
         (re('(.*)-(alls)'), store_metric),
         (re('(.*)-(ranges)'), store_metric),
         (re('(.*)-(gets)'), store_metric),
+        (re('(.*)-(getalls)'), store_metric),
     },
     'org.apache.samza.storage.kv.LoggedStoreMetrics': {
         (re('(.*)-(gets)'), store_metric),
@@ -175,6 +208,7 @@ metrics = {
         (re('(.*)-(flushes)'), store_metric),
         (re('(.*)-(ranges)'), store_metric),
         (re('(.*)-(deletes)'), store_metric),
+        (re('(.*)-(deletealls)'), store_metric),
         (re('(.*)-(puts)'), store_metric),
         (re('(.*)-(gets)'), store_metric),
         (re('(.*)-(bytes-deserialized)'), store_metric),
@@ -200,6 +234,7 @@ metrics = {
         'flush-calls',
         'send-calls',
         'messages-sent',
+        'messages-actually-processed',
         (re('([^-]*)-(.*)-(\d+)-(offset)'), system_stream_partition_metric),
     },
     'org.apache.samza.storage.kv.CachedStoreMetrics': {
@@ -219,4 +254,7 @@ metrics = {
     'org.apache.samza.system.chooser.RoundRobinChooserMetrics': {
         'buffered-messages',
     },
+    'org.apache.samza.checkpoint.OffsetManagerMetrics': {
+        (re('([^-]*)-(.*)-(\d+)-(checkpointed-offset)'), system_stream_partition_metric),
+    }
 }

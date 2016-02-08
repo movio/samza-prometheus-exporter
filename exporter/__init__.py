@@ -25,7 +25,7 @@ def setGaugeValue(name, labels, labelValues, value, description = ""):
 def process_metric(job_name, metric_class_name, metric_name, metric_value):
     try:
         float(metric_value)
-    except ValueError:
+    except (TypeError, ValueError):
         return
     if metric_class_name in samza.metrics:
         processed = False
@@ -43,6 +43,8 @@ def process_metric(job_name, metric_class_name, metric_name, metric_value):
                         [ job_name] + list(parsed_metric['labels'].values()),
                         metric_value
                     )
+        raise KeyError('unrecognized Samza metric: %s.%s' % (metric_class_name, metric_name))
+    elif metric_class_name.startswith('org.apache.samza'):
         raise KeyError('unrecognized Samza metric: %s.%s' % (metric_class_name, metric_name))
     else:
         return setGaugeValue('samza:' + metric_class_name + ":" + metric_name, [ 'samza_job' ], [ job_name ], metric_value)
