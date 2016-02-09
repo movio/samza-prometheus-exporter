@@ -148,6 +148,11 @@ metrics = {
         'ps scavenge-gc-time-millis',
         'gc-count',
         'gc-time-millis',
+        'copy-gc-count',
+        'copy-gc-time-millis',
+        'marksweepcompact-gc-count',
+        'marksweepcompact-gc-time-millis',
+
     },
     'org.apache.samza.job.yarn.SamzaAppMasterMetrics': {
         'released-containers',

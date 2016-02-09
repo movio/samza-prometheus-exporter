@@ -2,9 +2,28 @@
 Feed [Apache Samza](http://samza.apache.org/) metrics into [Prometheus](http://prometheus.io/)
 
 # Installation
-[This blog post](https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-using-docker-on-ubuntu-14-04) from Ditial Ocean explains how to setup Prometheus.
-The easiest is to run the docker image. Specify the `PORT`, `BROKERS` and `TOPIC` env variables when running the image.
-To run outside docker, install with:
+[This blog post](https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-using-docker-on-ubuntu-14-04)
+from Ditial Ocean explains how to setup Prometheus, the node exporter and Grafana.
+
+## Using docker
+
+Build the docker image:
+
+```
+sudo docker build -t samza-prometheus-exporter:0.1.2 .
+```
+
+Then run it:
+
+```
+sudo docker run -d --name samza-prometheus-exporter -p 8080:8080 \
+    -e "BROKERS=broker1:9092,broker2:9092" \
+    -e "TOPIC=samza-metrics" \
+    -e "PORT=8080" \
+    samza-prometheus-exporter:0.1.2
+```
+
+## Using pip3
 ```
 sudo pip3 install .
 ```
