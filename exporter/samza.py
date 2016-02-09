@@ -256,5 +256,9 @@ metrics = {
     },
     'org.apache.samza.checkpoint.OffsetManagerMetrics': {
         (re('([^-]*)-(.*)-(\d+)-(checkpointed-offset)'), system_stream_partition_metric),
+    },
+    'org.apache.samza.system.chooser.BatchingChooserMetrics': {
+        'batch-resets',
+        'batched-envelopes'
     }
 }
