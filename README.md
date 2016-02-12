@@ -1,6 +1,8 @@
 # samza-prometheus-exporter
 Feed [Apache Samza](http://samza.apache.org/) metrics into [Prometheus](http://prometheus.io/)
 
+![screenshot](https://raw.github.com/movio/samza-prometheus-exporter/master/images/samza-prometheus-exporter-screenshot.png)
+
 # Installation
 [This blog post](https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-using-docker-on-ubuntu-14-04)
 from Ditial Ocean explains how to setup Prometheus, the node exporter and Grafana.
