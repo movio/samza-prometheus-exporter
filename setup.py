@@ -25,7 +25,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'samza-prometheus-exporter=exporter:main',
+            'samza-prometheus-exporter=samza_prometheus_exporter:main',
         ],
     },
 )
