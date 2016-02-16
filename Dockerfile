@@ -4,7 +4,7 @@ MAINTAINER nicolas@movio.co
 
 WORKDIR /usr/src/app
 
-COPY exporter/*.py /usr/src/app/exporter/
+COPY samza_prometheus_exporter/*.py /usr/src/app/samza_prometheus_exporter/
 COPY setup.py /usr/src/app/
 COPY LICENSE /usr/src/app/
 

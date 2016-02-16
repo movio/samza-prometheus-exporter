@@ -2,7 +2,7 @@
 
 import json
 import argparse
-from exporter import samza
+from samza_prometheus_exporter import samza
 from kafka import KafkaConsumer
 from prometheus_client import start_http_server, Gauge
 
@@ -22,16 +22,20 @@ def setGaugeValue(name, labels, labelValues, value, description = ""):
     else:
         GAUGES[name].set(value)
 
-def process_metric(job_name, metric_class_name, metric_name, metric_value):
+def process_metric(job_name, task_name, metric_class_name, metric_name, metric_value):
     try:
         float(metric_value)
     except (TypeError, ValueError):
         return
+
+    label_keys = [ 'samza_job', 'samza_task' ]
+    label_values = [ job_name, task_name ]
+
     if metric_class_name in samza.metrics:
         processed = False
         for entry in samza.metrics[metric_class_name]:
             if type(entry) is str and metric_name == entry:
-                return setGaugeValue('samza:' + metric_class_name + ":" + metric_name, [ 'samza_job' ], [ job_name ], metric_value)
+                return setGaugeValue('samza:' + metric_class_name + ":" + metric_name, label_keys, label_values, metric_value)
             elif type(entry) is tuple:
                 regex, parser = entry
                 match = regex.match(metric_name)
@@ -39,22 +43,30 @@ def process_metric(job_name, metric_class_name, metric_name, metric_value):
                     parsed_metric = parser(match)
                     return setGaugeValue(
                         'samza:' + metric_class_name + ":" + parsed_metric['name'],
-                        [ 'samza_job' ] + list(parsed_metric['labels'].keys()),
-                        [ job_name] + list(parsed_metric['labels'].values()),
+                        label_keys + list(parsed_metric['labels'].keys()),
+                        label_values + list(parsed_metric['labels'].values()),
                         metric_value
                     )
         raise KeyError('unrecognized Samza metric: %s.%s' % (metric_class_name, metric_name))
     elif metric_class_name.startswith('org.apache.samza'):
         raise KeyError('unrecognized Samza metric: %s.%s' % (metric_class_name, metric_name))
     else:
-        return setGaugeValue('samza:' + metric_class_name + ":" + metric_name, [ 'samza_job' ], [ job_name ], metric_value)
+        return setGaugeValue('samza:' + metric_class_name + ":" + metric_name, label_keys, label_values, metric_value)
+
+def get_task_name(message_value_json):
+    source = message_value_json['header']['source']
+    if source.startswith('TaskName-'):
+        return source[len('TaskName-'):]
+    else:
+        return "none"
 
 def process_message(message, consumer, brokers):
     message_value_json = json.loads(str(message.value.decode('utf-8')))
     job_name = message_value_json['header']['job-name']
+    task_name = get_task_name(message_value_json)
     for metric_class_name, metrics in message_value_json['metrics'].items():
         for metric_name, metric_value in metrics.items():
-            process_metric(job_name, metric_class_name, metric_name, metric_value)
+            process_metric(job_name, task_name, metric_class_name, metric_name, metric_value)
 
 def consume_topic(consumer, brokers):
     print('Starting consumption loop.')
