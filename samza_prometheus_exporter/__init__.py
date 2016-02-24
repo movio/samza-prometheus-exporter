@@ -2,25 +2,32 @@
 
 import json
 import argparse
+import time
 from samza_prometheus_exporter import samza
 from kafka import KafkaConsumer
-from prometheus_client import start_http_server, Gauge
+from prometheus_client import start_http_server, Gauge, REGISTRY
+from threading import Lock, Thread
 
 KAFKA_GROUP_ID = 'samza-prometheus-exporter'
 
 GAUGES = {}
+GAUGES_LAST_UPDATE = {}
+GAUGES_LOCK = Lock()
+GAUGES_TTL = 60
 
 def metric_name_escape(name):
     return name.replace(".", "_").replace("-", "_").replace(" ", "_")
 
 def setGaugeValue(name, labels, labelValues, value, description = ""):
-    name = metric_name_escape(name)
-    if name not in GAUGES:
-        GAUGES[name] = Gauge(name, description, labels)
-    if labels:
-        GAUGES[name].labels(*labelValues).set(value)
-    else:
-        GAUGES[name].set(value)
+    with GAUGES_LOCK:
+        name = metric_name_escape(name)
+        if name not in GAUGES:
+            GAUGES[name] = Gauge(name, description, labels)
+        if labels:
+            GAUGES[name].labels(*labelValues).set(value)
+        else:
+            GAUGES[name].set(value)
+        GAUGES_LAST_UPDATE[name] = time.time()
 
 def process_metric(job_name, task_name, metric_class_name, metric_name, metric_value):
     try:
@@ -73,6 +80,28 @@ def consume_topic(consumer, brokers):
     for message in consumer:
         process_message(message, consumer, brokers)
 
+def set_gauges_ttl(ttl):
+    global GAUGES_TTL
+    if ttl is not None: GAUGES_TTL = ttl
+
+def start_ttl_watchdog_thread():
+    t = Thread(target=ttl_watchdog)
+    t.daemon = True
+    t.start()
+
+def ttl_watchdog():
+    while True:
+        s = GAUGES_TTL / 10
+        time.sleep(s)
+        now = time.time()
+        with GAUGES_LOCK:
+            for (name, last_update) in list(GAUGES_LAST_UPDATE.items()):
+                age = now - last_update
+                if age > GAUGES_TTL:
+                    REGISTRY.unregister(GAUGES[name])
+                    del GAUGES[name]
+                    del GAUGES_LAST_UPDATE[name]
+
 def main():
     parser = argparse.ArgumentParser(description='Feed Apache Samza metrics into Prometheus.')
     parser.add_argument('--brokers', metavar='BROKERS', type=str, required=True,
@@ -83,13 +112,19 @@ def main():
                         help='name of topic to consume (default: "samza-metrics")')
     parser.add_argument('--from-beginning', action='store_const', const=True,
                         help='consume topic from offset 0')
+    parser.add_argument('--ttl', metavar='GAUGES_TTL', type=int, nargs='?',
+                        help='time in seconds after which a metric is no longer reported when not updated (default: 60s)')
     args = parser.parse_args()
     brokers = args.brokers.split(',')
     consumer = KafkaConsumer(args.topic, group_id=KAFKA_GROUP_ID, bootstrap_servers=brokers)
     start_http_server(args.port)
 
+    set_gauges_ttl(args.ttl)
+
     if args.from_beginning:
         consumer.set_topic_partitions((args.topic, 0, 0)) # FIXME: beginning may not be offset 0
+
+    start_ttl_watchdog_thread()
 
     try:
         consume_topic(consumer, args.brokers)
