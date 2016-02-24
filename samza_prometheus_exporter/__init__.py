@@ -12,6 +12,7 @@ KAFKA_GROUP_ID = 'samza-prometheus-exporter'
 
 GAUGES = {}
 GAUGES_LAST_UPDATE = {}
+GAUGES_LABELS_LAST_UPDATE = {}
 GAUGES_LOCK = Lock()
 GAUGES_TTL = 60
 
@@ -25,6 +26,7 @@ def setGaugeValue(name, labels, labelValues, value, description = ""):
             GAUGES[name] = Gauge(name, description, labels)
         if labels:
             GAUGES[name].labels(*labelValues).set(value)
+            GAUGES_LABELS_LAST_UPDATE[(name, tuple(labelValues))] = time.time()
         else:
             GAUGES[name].set(value)
         GAUGES_LAST_UPDATE[name] = time.time()
@@ -89,18 +91,29 @@ def start_ttl_watchdog_thread():
     t.daemon = True
     t.start()
 
+def ttl_watchdog_unregister_old_metrics(now):
+    for (name, last_update) in list(GAUGES_LAST_UPDATE.items()):
+        if now - last_update > GAUGES_TTL:
+            REGISTRY.unregister(GAUGES[name])
+            del GAUGES[name]
+            del GAUGES_LAST_UPDATE[name]
+            for (other_name, label_values) in list(GAUGES_LABELS_LAST_UPDATE.keys()):
+                if name == other_name:
+                    del GAUGES_LABELS_LAST_UPDATE[(name, label_values)]
+
+def ttl_watchdog_remove_old_label_values(now):
+    for ((name, label_values), last_update) in list(GAUGES_LABELS_LAST_UPDATE.items()):
+        if now - last_update > GAUGES_TTL:
+            GAUGES[name].remove(*label_values)
+            del GAUGES_LABELS_LAST_UPDATE[(name, label_values)]
+
 def ttl_watchdog():
     while True:
-        s = GAUGES_TTL / 10
-        time.sleep(s)
+        time.sleep(GAUGES_TTL / 10.0)
         now = time.time()
         with GAUGES_LOCK:
-            for (name, last_update) in list(GAUGES_LAST_UPDATE.items()):
-                age = now - last_update
-                if age > GAUGES_TTL:
-                    REGISTRY.unregister(GAUGES[name])
-                    del GAUGES[name]
-                    del GAUGES_LAST_UPDATE[name]
+            ttl_watchdog_unregister_old_metrics(now)
+            ttl_watchdog_remove_old_label_values(now)
 
 def main():
     parser = argparse.ArgumentParser(description='Feed Apache Samza metrics into Prometheus.')
@@ -113,7 +126,7 @@ def main():
     parser.add_argument('--from-beginning', action='store_const', const=True,
                         help='consume topic from offset 0')
     parser.add_argument('--ttl', metavar='GAUGES_TTL', type=int, nargs='?',
-                        help='time in seconds after which a metric is no longer reported when not updated (default: 60s)')
+                        help='time in seconds after which a metric (or label set) is no longer reported when not updated (default: 60s)')
     args = parser.parse_args()
     brokers = args.brokers.split(',')
     consumer = KafkaConsumer(args.topic, group_id=KAFKA_GROUP_ID, bootstrap_servers=brokers)
