@@ -245,9 +245,11 @@ metrics = {
     'org.apache.samza.storage.kv.CachedStoreMetrics': {
         (re('(.*)-(cache-hits)'), store_metric),
         (re('(.*)-(flushes)'), store_metric),
+        (re('(.*)-(flushes-avoided)'), store_metric),
         (re('(.*)-(store-calls)'), store_metric),
         (re('(.*)-(messages-restored)'), store_metric),
         (re('(.*)-(flush-batch-size)'), store_metric),
+        (re('(.*)-(put-all-dirty-entries-batch-size)'), store_metric),
         (re('(.*)-(alls)'), store_metric),
         (re('(.*)-(dirty-count)'), store_metric),
         (re('(.*)-(puts)'), store_metric),
