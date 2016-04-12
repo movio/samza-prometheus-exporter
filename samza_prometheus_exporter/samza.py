@@ -81,21 +81,29 @@ def partition_store_metric(match):
         }
     }
 
+def kafka_system_metric(match):
+    return {
+        'name': 'kafka-' + match.group(2),
+        'labels': {
+            'system': match.group(1)
+        }
+    }
+
 """
 Simple metrics are encoded as strings.
 Metrics that need a regex to extract labels are encoded as a tuple (regex, parser).
 """
 metrics = {
     'org.apache.samza.system.kafka.KafkaSystemProducerMetrics': [
-        'kafka-producer-send-failed',
-        'kafka-producer-send-success',
-        'kafka-producer-sends',
-        'kafka-producer-retries',
-        'kafka-flush-ms',
-        'kafka-flush-failed',
-        'kafka-flushes',
+        (re('(.*)-(producer-send-failed)'), kafka_system_metric),
+        (re('(.*)-(producer-send-success)'), kafka_system_metric),
+        (re('(.*)-(producer-sends)'), kafka_system_metric),
+        (re('(.*)-(producer-retries)'), kafka_system_metric),
+        (re('(.*)-(flush-ms)'), kafka_system_metric),
+        (re('(.*)-(flush-failed)'), kafka_system_metric),
+        (re('(.*)-(flushes)'), kafka_system_metric),
+        (re('(.*)-(flush-ns)'), kafka_system_metric),
         'serialization error',
-        'kafka-flush-ns',
     ],
     'org.apache.samza.system.kafka.KafkaSystemConsumerMetrics': {
         (re('(.*)-(\d+)-(bytes-read)'), topic_partition_metric),
@@ -123,9 +131,9 @@ metrics = {
         'poll-timeout',
         'ssps-needed-by-chooser',
         'deserialization error',
-        'kafka-messages-per-poll',
-        'kafka-polls',
-        'kafka-ssp-fetches-per-poll',
+        (re('(.*)-(messages-per-poll)'), kafka_system_metric),
+        (re('(.*)-(polls)'), kafka_system_metric),
+        (re('(.*)-(ssp-fetches-per-poll)'), kafka_system_metric),
         (re('([^-]*)-(.*)-(messages-chosen)'), system_topic_metric),
     },
     'org.apache.samza.metrics.JvmMetrics': {
