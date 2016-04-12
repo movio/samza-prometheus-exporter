@@ -31,14 +31,14 @@ def setGaugeValue(name, labels, labelValues, value, description = ""):
             GAUGES[name].set(value)
         GAUGES_LAST_UPDATE[name] = time.time()
 
-def process_metric(job_name, task_name, metric_class_name, metric_name, metric_value):
+def process_metric(job_name, container_name, task_name, metric_class_name, metric_name, metric_value):
     try:
         float(metric_value)
     except (TypeError, ValueError):
         return
 
-    label_keys = [ 'samza_job', 'samza_task' ]
-    label_values = [ job_name, task_name ]
+    label_keys = [ 'samza_job', 'samza_container', 'samza_task' ]
+    label_values = [ job_name, container_name, task_name ]
 
     if metric_class_name in samza.metrics:
         processed = False
@@ -72,10 +72,11 @@ def get_task_name(message_value_json):
 def process_message(message, consumer, brokers):
     message_value_json = json.loads(str(message.value.decode('utf-8')))
     job_name = message_value_json['header']['job-name']
+    container_name = message_value_json['header']['container-name']
     task_name = get_task_name(message_value_json)
     for metric_class_name, metrics in message_value_json['metrics'].items():
         for metric_name, metric_value in metrics.items():
-            process_metric(job_name, task_name, metric_class_name, metric_name, metric_value)
+            process_metric(job_name, container_name, task_name, metric_class_name, metric_name, metric_value)
 
 def consume_topic(consumer, brokers):
     print('Starting consumption loop.')
