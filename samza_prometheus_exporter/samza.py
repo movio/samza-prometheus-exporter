@@ -275,5 +275,9 @@ metrics = {
     'org.apache.samza.system.chooser.BatchingChooserMetrics': {
         'batch-resets',
         'batched-envelopes'
+    },
+    'org.apache.samza.system.chooser.BootstrappingChooserMetrics': {
+        'batch-resets',
+	'lagging-batch-streams'
     }
 }
