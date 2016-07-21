@@ -56,9 +56,9 @@ def process_metric(host, job_name, container_name, task_name, metric_class_name,
                         label_values + list(parsed_metric['labels'].values()),
                         metric_value
                     )
-        raise KeyError('unrecognized Samza metric: %s.%s' % (metric_class_name, metric_name))
+        print('WARNING: unrecognized Samza metric: %s.%s' % (metric_class_name, metric_name))
     elif metric_class_name.startswith('org.apache.samza'):
-        raise KeyError('unrecognized Samza metric: %s.%s' % (metric_class_name, metric_name))
+        print('WARNING: unrecognized Samza metric: %s.%s' % (metric_class_name, metric_name))
     else:
         return setGaugeValue('samza:' + metric_class_name + ":" + metric_name, label_keys, label_values, metric_value)
 
