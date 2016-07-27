@@ -279,6 +279,7 @@ metrics = {
     'org.apache.samza.system.chooser.BootstrappingChooserMetrics': {
         'batch-resets',
 	    'lagging-batch-streams',
-        'kafka-mqtt-presence-lagging-partitions'
+        'kafka-mqtt-presence-lagging-partitions',
+        'kafka-profiles-lagging-partitions'
     }
 }
