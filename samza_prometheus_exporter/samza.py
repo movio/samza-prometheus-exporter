@@ -278,7 +278,7 @@ metrics = {
     },
     'org.apache.samza.system.chooser.BootstrappingChooserMetrics': {
         'batch-resets',
-	    'lagging-batch-streams',
+	'lagging-batch-streams',
         (re('(.*)-(lagging-partitions)'), store_metric)
     }
 }
