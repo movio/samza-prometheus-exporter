@@ -3,12 +3,13 @@
 import json
 import argparse
 import time
+import os
 from samza_prometheus_exporter import samza
 from kafka import KafkaConsumer
 from prometheus_client import start_http_server, Gauge, REGISTRY
 from threading import Lock, Thread
 
-KAFKA_GROUP_ID = 'samza-prometheus-exporter'
+KAFKA_GROUP_ID = os.environ.get('KAFKA_GROUP_ID', 'samza-prometheus-exporter')
 
 GAUGES = {}
 GAUGES_LAST_UPDATE = {}
