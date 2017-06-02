@@ -4,6 +4,7 @@ import json
 import argparse
 import time
 import os
+import re
 from samza_prometheus_exporter import samza
 from kafka import KafkaConsumer
 from prometheus_client import start_http_server, Gauge, REGISTRY
@@ -70,9 +71,11 @@ def get_task_name(message_value_json):
     else:
         return "none"
 
-def process_message(message, consumer, brokers):
+def process_message(message, consumer, brokers, include_jobs_re):
     message_value_json = json.loads(str(message.value.decode('utf-8')))
     job_name = message_value_json['header']['job-name']
+    if include_jobs_re.match(job_name) is None:
+        return
     container_name = message_value_json['header']['container-name']
     host = message_value_json['header']['host']
     task_name = get_task_name(message_value_json)
@@ -80,10 +83,10 @@ def process_message(message, consumer, brokers):
         for metric_name, metric_value in metrics.items():
             process_metric(host, job_name, container_name, task_name, metric_class_name, metric_name, metric_value)
 
-def consume_topic(consumer, brokers):
+def consume_topic(consumer, brokers, include_jobs_re):
     print('Starting consumption loop.')
     for message in consumer:
-        process_message(message, consumer, brokers)
+        process_message(message, consumer, brokers, include_jobs_re)
 
 def set_gauges_ttl(ttl):
     global GAUGES_TTL
@@ -128,6 +131,8 @@ def main():
                         help='name of topic to consume (default: "samza-metrics")')
     parser.add_argument('--from-beginning', action='store_const', const=True,
                         help='consume topic from offset 0')
+    parser.add_argument('--include-jobs-regex', metavar='INCLUDE_JOBS_REGEX', type=str, nargs='?', default='.*',
+                        help='only include jobs which match the given regex')
     parser.add_argument('--ttl', metavar='GAUGES_TTL', type=int, nargs='?',
                         help='time in seconds after which a metric (or label set) is no longer reported when not updated (default: 60s)')
     args = parser.parse_args()
@@ -143,7 +148,7 @@ def main():
     start_ttl_watchdog_thread()
 
     try:
-        consume_topic(consumer, args.brokers)
+        consume_topic(consumer, args.brokers, re.compile(args.include_jobs_regex))
     except KeyboardInterrupt:
         pass # FIXME : should we close consumer ?
 
