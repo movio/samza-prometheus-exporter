@@ -135,6 +135,7 @@ def main():
                         help='only include jobs which match the given regex')
     parser.add_argument('--ttl', metavar='GAUGES_TTL', type=int, nargs='?',
                         help='time in seconds after which a metric (or label set) is no longer reported when not updated (default: 60s)')
+
     args = parser.parse_args()
     brokers = args.brokers.split(',')
     consumer = KafkaConsumer(args.topic, group_id=KAFKA_GROUP_ID, bootstrap_servers=brokers)
@@ -143,7 +144,7 @@ def main():
     set_gauges_ttl(args.ttl)
 
     if args.from_beginning:
-        consumer.set_topic_partitions((args.topic, 0, 0)) # FIXME: beginning may not be offset 0
+        consumer.seek_to_beginning()
 
     start_ttl_watchdog_thread()
 
