@@ -162,6 +162,10 @@ metrics = {
         'copy-gc-time-millis',
         'marksweepcompact-gc-count',
         'marksweepcompact-gc-time-millis',
+        'g1 old generation-gc-time-millis',
+        'g1 old generation-gc-count',
+        'g1 young generation-gc-time-millis',
+        'g1 young generation-gc-count',
 
     },
     'org.apache.samza.job.yarn.SamzaAppMasterMetrics': {
