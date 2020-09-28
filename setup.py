@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='samza-prometheus-exporter',
-    version='0.3.2',
+    version='0.3.3',
     description='Samza metrics Prometheus exporter',
     url='https://github.com/movio/samza-prometheus-exporter',
     author='Nicolas Maquet',
