@@ -89,12 +89,28 @@ def kafka_system_metric(match):
         }
     }
 
+def hdfs_system_metric(match):
+    return {
+        'name': 'hdfs-' + match.group(2),
+        'labels': {
+            'system': match.group(1)
+        }
+    }
+
+def elasticsearch_system_metric(match):
+    return {
+        'name': 'elasticsearch-' + match.group(2),
+        'labels': {
+            'system': match.group(1)
+        }
+    }
+
 """
 Simple metrics are encoded as strings.
 Metrics that need a regex to extract labels are encoded as a tuple (regex, parser).
 """
 metrics = {
-    'org.apache.samza.system.kafka.KafkaSystemProducerMetrics': [
+    'org.apache.samza.system.kafka.KafkaSystemProducerMetrics': {
         (re('(.*)-(producer-send-failed)'), kafka_system_metric),
         (re('(.*)-(producer-send-success)'), kafka_system_metric),
         (re('(.*)-(producer-sends)'), kafka_system_metric),
@@ -104,7 +120,7 @@ metrics = {
         (re('(.*)-(flushes)'), kafka_system_metric),
         (re('(.*)-(flush-ns)'), kafka_system_metric),
         'serialization error',
-    ],
+    },
     'org.apache.samza.system.kafka.KafkaSystemConsumerMetrics': {
         (re('(.*)-(\d+)-(bytes-read)'), topic_partition_metric),
         (re('(.*)-(\d+)-(high-watermark)'), topic_partition_metric),
@@ -131,8 +147,8 @@ metrics = {
         'poll-timeout',
         'ssps-needed-by-chooser',
         'deserialization error',
-		'poll-ns',
-		'deserialization-ns',
+        'poll-ns',
+        'deserialization-ns',
         (re('(.*)-(messages-per-poll)'), kafka_system_metric),
         (re('(.*)-(polls)'), kafka_system_metric),
         (re('(.*)-(ssp-fetches-per-poll)'), kafka_system_metric),
@@ -166,7 +182,11 @@ metrics = {
         'g1 old generation-gc-count',
         'g1 young generation-gc-time-millis',
         'g1 young generation-gc-count',
-
+        'process-cpu-usage',
+        'system-cpu-usage',
+        'open-file-descriptor-count',
+        (re('(\w*)-(gc-count)'), store_metric),
+        (re('(\w*)-(gc-time-millis)'), store_metric),
     },
     'org.apache.samza.job.yarn.SamzaAppMasterMetrics': {
         'released-containers',
@@ -181,7 +201,7 @@ metrics = {
         'task-count',
         'locality-matched',
         'container-count',
-		'heartbeats-expired',
+        'heartbeats-expired',
     },
     'org.apache.samza.container.SamzaContainerMetrics': {
         'process-calls',
@@ -200,14 +220,18 @@ metrics = {
         'commit-ns',
         'event-loop-utilization',
         'messages-actually-processed',
-		'physical-memory-mb',
-		'block-ns',
-		'container-startup-time',
-		'disk-usage-bytes',
-		'executor-work-factor',
-		'disk-quota-bytes',
+        'physical-memory-mb',
+        'container-thread-pool-size',
+        'block-ns',
+        'timer-ns',
+        'timer-calls',
+        'container-startup-time',
+        'disk-usage-bytes',
+        'executor-work-factor',
+        'disk-quota-bytes',
         (re('partition (\d+)-(object-restore-time)'), partition_metric),
         (re('partition (\d+)-(lookup-restore-time)'), partition_metric),
+        (re('partition (\d+)-(restore-time)'), partition_metric),
         (re('partition (\d+)-(.*)-(restore-time)'), partition_store_metric),
     },
     'org.apache.samza.storage.kv.KeyValueStoreMetrics': {
@@ -221,6 +245,13 @@ metrics = {
         (re('(.*)-(ranges)'), store_metric),
         (re('(.*)-(gets)'), store_metric),
         (re('(.*)-(getalls)'), store_metric),
+        (re('(.*)-(putalls)'), store_metric),
+        (re('(.*)\.(cur-size-active-mem-table)'), store_metric),
+        (re('(.*)\.(block-cache-size)'), store_metric),
+        (re('(.*)\.(size-all-mem-tables)'), store_metric),
+        (re('(.*)\.(estimate-num-keys)'), store_metric),
+        (re('(.*)\.(estimate-table-readers-mem)'), store_metric),
+        (re('(.*)\.(cur-size-all-mem-tables)'), store_metric),
     },
     'org.apache.samza.storage.kv.LoggedStoreMetrics': {
         (re('(.*)-(gets)'), store_metric),
@@ -240,6 +271,10 @@ metrics = {
         (re('(.*)-(bytes-deserialized)'), store_metric),
         (re('(.*)-(bytes-serialized)'), store_metric),
         (re('(.*)-(alls)'), store_metric),
+        (re('(.*)-(max-record-key-size-bytes)'), store_metric),
+        (re('(.*)-(max-record-size-bytes)'), store_metric),
+        (re('(.*)-(key-size-bytes-histogram)'), store_metric),
+        (re('(.*)-(value-size-bytes-histogram)'), store_metric),
     },
     'org.apache.samza.storage.kv.KeyValueStorageEngineMetrics': {
         (re('(.*)-(ranges)'), store_metric),
@@ -252,13 +287,28 @@ metrics = {
         (re('(.*)-(messages-restored)'), store_metric),
         (re('(.*)-(deletes)'), store_metric),
         (re('(.*)-(bytes-deserialized)'), store_metric),
-		(re('(.*)-(flush-ns)'), store_metric),
-		(re('(.*)-(all-ns)'), store_metric),
-		(re('(.*)-(get-ns)'), store_metric),
-		(re('(.*)-(put-ns)'), store_metric),
-		(re('(.*)-(release-ns)'), store_metric),
-		(re('(.*)-(range-ns)'), store_metric),
-		(re('(.*)-(delete-ns)'), store_metric),
+        (re('(.*)-(flush-ns)'), store_metric),
+        (re('(.*)-(all-ns)'), store_metric),
+        (re('(.*)-(get-ns)'), store_metric),
+        (re('(.*)-(put-ns)'), store_metric),
+        (re('(.*)-(release-ns)'), store_metric),
+        (re('(.*)-(range-ns)'), store_metric),
+        (re('(.*)-(delete-ns)'), store_metric),
+        (re('(.*)-(restored-messages)'), store_metric),
+        (re('(.*)-(restored-bytes)'), store_metric),
+        (re('(.*)-(trimmed-messages)'), store_metric),
+        (re('(.*)-(checkpoints)'), store_metric),
+        (re('(.*)-(snapshots)'), store_metric),
+        (re('(.*)-(snapshot-ns)'), store_metric),
+        (re('(.*)-(checkpoint-ns)'), store_metric),
+        (re('(.*)-(trimmed-bytes)'), store_metric),
+        (re('(.*)-(putalls)'), store_metric),
+        (re('(.*)\.(cur-size-active-mem-table)'), store_metric),
+        (re('(.*)\.(block-cache-size)'), store_metric),
+        (re('(.*)\.(size-all-mem-tables)'), store_metric),
+        (re('(.*)\.(estimate-num-keys)'), store_metric),
+        (re('(.*)\.(estimate-table-readers-mem)'), store_metric),
+        (re('(.*)\.(cur-size-all-mem-tables)'), store_metric),
     },
     'org.apache.samza.container.TaskInstanceMetrics': {
         'commit-calls',
@@ -268,8 +318,9 @@ metrics = {
         'send-calls',
         'messages-sent',
         'messages-actually-processed',
-		'pending-messages',
-		'messages-in-flight',
+        'pending-messages',
+        'messages-in-flight',
+        'async-callback-complete-calls',
         (re('([^-]*)-(.*)-(\d+)-(offset)'), system_stream_partition_metric),
     },
     'org.apache.samza.storage.kv.CachedStoreMetrics': {
@@ -300,18 +351,61 @@ metrics = {
     },
     'org.apache.samza.system.chooser.BootstrappingChooserMetrics': {
         'batch-resets',
-	'lagging-batch-streams',
+        'lagging-batch-streams',
         (re('(.*)-(lagging-partitions)'), store_metric)
     },
-	'org.apache.samza.metrics.ContainerProcessManagerMetrics': {
-		'running-containers',
-		'needed-containers',
-		'completed-containers',
-		'failed-containers',
-		'released-containers',
-		'container-count',
-		'job-healthy',
-		'locality-matched',
-		'redundant-notifications',
-	},
+    'org.apache.samza.metrics.ContainerProcessManagerMetrics': {
+        'running-containers',
+        'needed-containers',
+        'completed-containers',
+        'failed-containers',
+        'released-containers',
+        'container-count',
+        'job-healthy',
+        'locality-matched',
+        'redundant-notifications',
+        'failovers-to-any-host',
+        'preferred-host-requests',
+        'any-host-requests',
+        'failed-container-placements-actions',
+        'expired-preferred-host-requests',
+        'container-memory-mb',
+        'failed-standby-allocations',
+        'failovers-to-standby',
+        'expired-any-host-requests',
+        'host-affinity-match-pct',
+        'container-cpu-cores',
+    },
+    'org.apache.samza.metrics.ZkUtilsMetrics': {
+        'reads',
+        'writes',
+        'subscriptions',
+        'zk-connection-errors',
+    },
+    'org.apache.samza.metrics.ZkJobCoordinatorMetrics': {
+        'is-leader',
+        'barrier-creation',
+        'barrier-state-change',
+        'barrier-error',
+        'single-barrier-rebalancing-time',
+    },
+    'org.apache.samza.system.hdfs.HdfsSystemProducerMetrics': {
+        (re('(.*)-(producer-sends)'), hdfs_system_metric),
+        (re('(.*)-(send-success)'), hdfs_system_metric),
+        (re('(.*)-(send-failed)'), hdfs_system_metric),
+        (re('(.*)-(send-ms)'), hdfs_system_metric),
+        (re('(.*)-(flushes)'), hdfs_system_metric),
+        (re('(.*)-(flush-success)'), hdfs_system_metric),
+        (re('(.*)-(flush-failed)'), hdfs_system_metric),
+        (re('(.*)-(flush-ms)'), hdfs_system_metric),
+    },
+    'org.apache.samza.system.elasticsearch.ElasticsearchSystemProducerMetrics': {
+        (re('(.*)-(bulk-send-success)'), elasticsearch_system_metric),
+        (re('(.*)-(docs-inserted)'), elasticsearch_system_metric),
+        (re('(.*)-(docs-updated)'), elasticsearch_system_metric),
+        (re('(.*)-(version-conflicts)'), elasticsearch_system_metric),
+    },
+    'job-coordinator': {
+        (re('(.*)-(partitionCount)'), store_metric),
+    },
 }
