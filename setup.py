@@ -20,8 +20,8 @@ setup(
     keywords='monitoring prometheus exporter apache samza',
     packages=find_packages(exclude=['tests']),
     install_requires=[
-        'kafka-python',
-        'prometheus-client>=0.0.13'
+        'kafka-python=2.0.2',
+        'prometheus-client>=0.12.0'
     ],
     entry_points={
         'console_scripts': [

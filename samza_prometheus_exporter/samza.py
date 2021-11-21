@@ -19,6 +19,14 @@ def store_metric(match):
         }
     }
 
+def operator_metric(match):
+    return {
+        'name': match.group(2),
+        'labels': {
+            'operator': match.group(1)
+        }
+    }
+
 def system_metric(match):
     return {
         'name': match.group(2),
@@ -63,6 +71,16 @@ def system_stream_partition_metric(match):
             'partition': match.group(3)
         }
     }
+    
+def system_stream_partition_metric_with_prefix(match):
+    return {
+        'name': 'system-stream-partition-' + match.group(4),
+        'labels': {
+            'system': match.group(1),
+            'stream': match.group(2),
+            'partition': match.group(3)
+        }
+    }    
 
 def partition_metric(match):
     return {
@@ -233,6 +251,9 @@ metrics = {
         (re('partition (\d+)-(lookup-restore-time)'), partition_metric),
         (re('partition (\d+)-(restore-time)'), partition_metric),
         (re('partition (\d+)-(.*)-(restore-time)'), partition_store_metric),
+        (re('systemstreampartition \[(.*), (.*), (.*)\]-(object-restore-time)'), system_stream_partition_metric_with_prefix),
+        (re('systemstreampartition \[(.*), (.*), (.*)\]-(lookup-restore-time)'), system_stream_partition_metric_with_prefix),
+        (re('systemstreampartition \[(.*), (.*), (.*)\]-(restore-time)'), system_stream_partition_metric_with_prefix),
     },
     'org.apache.samza.storage.kv.KeyValueStoreMetrics': {
         (re('(.*)-(bytes-read)'), store_metric),
@@ -408,4 +429,9 @@ metrics = {
     'job-coordinator': {
         (re('(.*)-(partitionCount)'), store_metric),
     },
+    'org.apache.samza.operators.impl.OperatorImpl': {
+        (re('(.*)-(messages)'), operator_metric),
+        (re('(.*)-(handle-message-ns)'), operator_metric),
+        (re('(.*)-(handle-timer-ns)'), operator_metric),
+    },    
 }
